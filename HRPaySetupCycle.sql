@@ -1,10 +1,3 @@
-/*
-HRPaySetupCycle
-
-	The HRPaySetupCycle table defines the employee pay cycle, arrears/advance 
-	option, time sheet and pay check locations.
-*/
-
 select 
 	DistrictID,
 	rtrim(DistrictAbbrev) as DistrictAbbrev,
@@ -12,37 +5,51 @@ select
 from tblDistrict
 
 select 
-	(select DistrictID from tblDistrict) as OrgId,
-	te.EmployeeID as  EmpId,
-	CONVERT(VARCHAR(10), scby.StartDate, 110) as DateFrom,
-	CONVERT(VARCHAR(10), scby.EndDate, 110) as DateThru,
-	paysite.SiteCode as SiteIdPayCheck,
-	attsite.SiteCode as SiteIdTimeSheet,
+	(select DistrictID from tblDistrict) as OrgID,
+	te.EmployeeID,
+	CONVERT(VARCHAR(10), pcd.EffectiveDate, 110) as DateFrom,
+	CONVERT(VARCHAR(10), pcd.InactiveDate, 110) as DateThru,
+	siAtt.SiteCode as SiteIdPayCheck,
+	siWork.SiteCode as SiteIdTimeSheet,
 	null as OptPayArrear,
 	null as OptPayAdvance,
-	(case when isnull(te.PayCycle,0) = 0 then scby.MthWk else te.PayCycle end) as PaycycleID,
 	null as ProratePrds,
 	null as AnnualizeBenefitOpt,
-	scby.CalendarName
+	te.SocSecNo,
+	te.LName,
+	te.FName,
+	cl.ClassDescription,
+	pcd.SlotNum,
+	jt.JobTitle,
+	cby.CalendarName,
+	cby.MthWk,
+	te.PayCycle,
+	te.IsDeferredPay,
+	siAtt.SiteName as WarrantSite,
+	siAtt.SiteCode as WarrantSiteCode,
+	siWork.SiteName as AttendanceSite,
+	siWork.SiteCode as AttendanceSiteCode
 from tblEmployee te
-inner join
-	tblCompDetails cd
-	on cd.EmployeeID = te.EmployeeID
+inner join 
+	tblClassifications cl
+	on cl.ClassificationID = te.ClassificationId
+	and te.EmployeeID > 0
 	and te.TerminateDate is null
-	and cd.FiscalYear = 2018
-	and cd.InactiveDate is null
-inner join
+left join
 	tblPositionControlDetails pcd
-	on cd.cdPositionControlID = pcd.PositionControlID
+	on pcd.EmployeeID = te.EmployeeID
 	and pcd.InactiveDate is null
-inner join
-	tblSlotCalendarByYear scby
-	on scby.SlotCalendarID = pcd.pcSlotCalendarID
-	and scby.FiscalYear = 2018
-inner join
-	tblSite paysite
-	on te.WarrantSiteID = paysite.SiteID
-inner join
-	tblSite attsite
-	on pcd.PayrollSiteID = attsite.SiteID
-
+left join
+	tblJobTitles jt
+	on pcd.pcJobTitleID = jt.JobTitleID
+left join
+	tblSlotCalendarByYear cby
+	on cby.SlotCalendarID = pcd.pcSlotCalendarID
+	and cby.FiscalYear = 2018
+left join
+	tblSite siAtt
+	on siAtt.SiteID = pcd.PayrollSiteID
+left join
+	tblSite siWork
+	on siWork.SiteID = pcd.SiteID
+order by te.Fullname asc
